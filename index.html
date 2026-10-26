@@ -88,8 +88,8 @@ function loadScannerLibrary(){
   scanLibraryPromise=new Promise((resolve,reject)=>{
     // Try two public CDNs because some mobile networks or browsers block one of them.
     const sources=[
-      'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js',
-      'https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js'
+      'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/zxing-browser.min.js',
+      'https://unpkg.com/@zxing/browser@0.1.5/umd/zxing-browser.min.js'
     ];
     let index=0;
     const tryNext=()=>{
