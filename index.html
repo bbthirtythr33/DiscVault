@@ -88,7 +88,34 @@ async function findCoverArt(movie){
       if(page?.thumbnail?.source)return page.thumbnail.source;
     }
   }catch(e){}
-  // Next try Apple's free movie catalog.
+  // Next try Wikimedia Commons for matching movie-poster images.
+  // Commons can have poster files even when the Wikipedia article has no thumbnail.
+  try{
+    const searches=[
+      '"' + movie.title + '" film poster',
+      '"' + movie.title + '" movie poster',
+      movie.title + ' theatrical poster'
+    ];
+    for(const term of searches){
+      const url='https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch='+encodeURIComponent(term)+'&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&iiurlwidth=500';
+      const r=await fetch(url);
+      if(!r.ok)continue;
+      const data=await r.json();
+      const pages=Object.values(data.query?.pages||{});
+      const ranked=pages.map(p=>{
+        const name=normalize(p.title||'');
+        const title=normalize(movie.title);
+        let score=name.includes(title)?4:0;
+        if(/poster|theatrical|film/i.test(p.title||''))score+=3;
+        if(/logo|soundtrack|cover|banner|icon/i.test(p.title||''))score-=4;
+        return {p,score};
+      }).sort((a,b)=>b.score-a.score);
+      const best=ranked.find(x=>x.score>=4)?.p;
+      const info=best?.imageinfo?.[0];
+      if(info?.thumburl||info?.url)return info.thumburl||info.url;
+    }
+  }catch(e){}
+  // Finally try Apple's free movie catalog.
   try{
     const url='https://itunes.apple.com/search?term='+encodeURIComponent(movie.title)+'&entity=movie&limit=25';
     const r=await fetch(url);
@@ -119,7 +146,7 @@ async function addCoverArt(movieId){
   }else{
     // Re-render the list so the clicked button is restored from “Searching…”.
     render();
-    $('mainStatus').textContent='No matching cover art found for “'+m.title+'”. The lookup sources did not return an image; try a shorter title or check your connection.';
+    $('mainStatus').textContent='No matching cover art found for “'+m.title+'”. Wikipedia, Wikimedia Commons, and Apple did not return a matching image; try again later or check your connection.';
   }
 }
 $('movieForm').addEventListener('submit',async e=>{e.preventDefault();const title=$('title').value.trim();if(!title)return;const m={id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),title,year:$('year').value,franchise:$('franchise').value.trim(),releaseOrder:$('releaseOrder').value,chronoOrder:$('chronoOrder').value,format:$('format').value,barcode:$('barcode').value.trim(),notes:$('notes').value.trim(),addedAt:new Date().toISOString(),artworkUrl:''};movies.push(m);save();$('movieForm').reset();$('formStatus').textContent='Added “'+title+'” to your collection. Looking for cover art…';$('search').value='';$('view').value='';render();const art=await findCoverArt(m);const saved=movies.find(x=>x.id===m.id);if(saved&&art){saved.artworkUrl=art;save();render();$('formStatus').textContent='Added “'+title+'” with cover art.'}else $('formStatus').textContent='Added “'+title+'”. No matching cover art was found; you can try Find cover art.'});
