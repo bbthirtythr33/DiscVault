@@ -38,7 +38,7 @@ h2{font-size:18px;margin:0 0 12px}.muted{color:var(--muted);font-size:13px;line-
 <div><label for="releaseOrder">Release order</label><input class="field" id="releaseOrder" type="number" min="1" placeholder="1"></div>
 <div><label for="chronoOrder">Chronological order</label><input class="field" id="chronoOrder" type="number" min="1" placeholder="1"></div>
 <div><label for="format">Edition</label><select class="field" id="format"><option>DVD</option><option>Blu-ray</option><option>4K UHD</option><option>Digital</option><option>Other</option></select></div>
-<div><label for="barcode">Barcode (optional)</label><input class="field" id="barcode" inputmode="numeric" maxlength="30" placeholder="UPC / EAN"><div class="actions"><button class="secondary" type="button" id="scanStart">▦ Scan with camera</button><button class="secondary hidden" type="button" id="scanStop">Stop camera</button></div><div class="scanner hidden" id="scannerPanel"><p class="muted">Point your camera at the barcode on the DVD case. Keep the barcode inside the frame and use good lighting. Camera access requires permission.</p><video id="scanVideo" playsinline muted></video><div class="status" id="scanStatus" role="status" aria-live="polite"></div></div></div>
+<div><label for="barcode">Barcode (optional)</label><input class="field" id="barcode" inputmode="numeric" maxlength="30" placeholder="UPC / EAN"><div class="actions"><button class="secondary" type="button" id="scanStart">▦ Scan with camera</button><button class="secondary" type="button" id="barcodeLookupBtn">Look up barcode</button><button class="secondary hidden" type="button" id="scanStop">Stop camera</button></div><div class="scanner hidden" id="scannerPanel"><p class="muted">Point your camera at the barcode on the DVD case. Keep the barcode inside the frame and use good lighting. Camera access requires permission.</p><video id="scanVideo" playsinline muted></video><div class="status" id="scanStatus" role="status" aria-live="polite"></div></div></div>
 <div class="full"><label for="notes">Notes (optional)</label><input class="field" id="notes" maxlength="240" placeholder="Special edition, box set, condition…"></div>
 </div>
 <div class="actions"><button type="submit">＋ Add to collection</button><button class="secondary" type="reset">Clear form</button></div>
@@ -158,6 +158,7 @@ function stopBarcodeScanner(){
   $('scanStart').disabled=false;
 }
 $('scanStart').addEventListener('click',startBarcodeScanner);
+$('barcodeLookupBtn').addEventListener('click',()=>{const code=$('barcode').value.replace(/\s/g,'').trim();if(!/^\d{8,14}$/.test(code)){alert('Scan a barcode or enter 8–14 digits first.');return;}lookupBarcodeAndAdd(code);});
 $('scanStop').addEventListener('click',()=>{stopBarcodeScanner();$('scanStatus').textContent='Camera stopped.';});
 window.addEventListener('pagehide',stopBarcodeScanner);
 
@@ -167,13 +168,14 @@ window.addEventListener('pagehide',stopBarcodeScanner);
 let barcodeLookupBusy=false;
 async function lookupBarcodeAndAdd(barcode){
   if(barcodeLookupBusy)return;barcodeLookupBusy=true;
+  $('scannerPanel').classList.remove('hidden');
   $('scanStatus').textContent='Barcode '+barcode+' captured. Looking up the movie…';
-  $('scanStart').disabled=true;
+  $('barcodeLookupBtn').disabled=true;$('scanStart').disabled=true;
   try{
     const url='https://api.upcitemdb.com/prod/trial/lookup?upc='+encodeURIComponent(barcode);
     const response=await fetch(url,{headers:{Accept:'application/json'}});
-    if(!response.ok)throw new Error('The barcode database is temporarily unavailable (HTTP '+response.status+').');
-    const data=await response.json();
+    let data;try{data=await response.json();}catch(parseError){throw new Error('The barcode database returned an unreadable response.');}
+    if(!response.ok || (data && data.code && data.code!=='OK')){const detail=(data&&data.message)||('HTTP '+response.status);throw new Error('Barcode database error: '+detail);}
     const item=(data.items||[]).find(x=>x&&String(x.title||'').trim());
     if(!item){$('scanStatus').textContent='No movie match found for '+barcode+'.';alert('DiscVault couldn’t find a match for this barcode. You can enter the movie title manually or use “Find movie details.”');return;}
     const rawTitle=String(item.title).trim();
@@ -190,9 +192,10 @@ async function lookupBarcodeAndAdd(barcode){
     if(ok){$('scanStatus').textContent='Match found — “'+title+'” was added to your collection.';alert('Match found! “'+title+'” was automatically added to your collection.');}
     else {alert('DiscVault found “'+title+'”, but couldn’t save it. Please check your browser storage and try adding it manually.');}
   }catch(err){
-    $('scanStatus').textContent='Could not complete the barcode lookup.';
-    alert('DiscVault couldn’t look up this barcode right now. The database may be unavailable or this barcode may not be listed. Please try again later or add the movie manually.');
-  }finally{barcodeLookupBusy=false;$('scanStart').disabled=false;}
+    const message=(err&&err.message)||'Unknown lookup error';
+    $('scanStatus').textContent='Lookup failed: '+message;
+    alert('DiscVault could not complete the barcode lookup.\n\n'+message+'\n\nYou can try again or add the movie manually.');
+  }finally{barcodeLookupBusy=false;$('scanStart').disabled=false;$('barcodeLookupBtn').disabled=false;}
 }
 
 // Free metadata lookup using Wikidata's public API (no API key required).
