@@ -86,12 +86,29 @@ function loadScannerLibrary(){
   if(window.ZXingBrowser)return Promise.resolve(window.ZXingBrowser);
   if(scanLibraryPromise)return scanLibraryPromise;
   scanLibraryPromise=new Promise((resolve,reject)=>{
-    const script=document.createElement('script');
-    script.src='https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js';
-    script.async=true;
-    script.onload=()=>window.ZXingBrowser?resolve(window.ZXingBrowser):reject(new Error('The scanner library loaded, but was not available.'));
-    script.onerror=()=>reject(new Error('Could not load the free barcode scanner. Check your connection and try again.'));
-    document.head.appendChild(script);
+    // Try two public CDNs because some mobile networks or browsers block one of them.
+    const sources=[
+      'https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/umd/index.min.js',
+      'https://unpkg.com/@zxing/browser@0.1.5/umd/index.min.js'
+    ];
+    let index=0;
+    const tryNext=()=>{
+      if(window.ZXingBrowser){resolve(window.ZXingBrowser);return;}
+      if(index>=sources.length){
+        reject(new Error('Could not load the scanner from either free CDN. Check your connection, then reload DiscVault and try again.'));
+        return;
+      }
+      const script=document.createElement('script');
+      script.src=sources[index++];
+      script.async=true;
+      script.onload=()=>{
+        if(window.ZXingBrowser)resolve(window.ZXingBrowser);
+        else {script.remove();tryNext();}
+      };
+      script.onerror=()=>{script.remove();tryNext();};
+      document.head.appendChild(script);
+    };
+    tryNext();
   });
   return scanLibraryPromise;
 }
