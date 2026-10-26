@@ -58,7 +58,7 @@ h2{font-size:18px;margin:0 0 12px}.muted{color:var(--muted);font-size:13px;line-
 <section class="card">
 <h2>How franchise ordering works</h2>
 <p class="muted">Enter a franchise name consistently (for example, “Star Wars”) to group its movies. Set each film’s release and chronological order numbers, then switch the sort menu. If you don’t know the in-universe order, leave it blank; those titles will appear after numbered entries.</p>
-<p class="note">Use Wikidata movie lookup to add a selected result directly to your collection. Cover art is searched automatically using the free iTunes movie catalog. Some titles may not have matching artwork; those keep the film icon. Cover art needs an internet connection, but your collection remains saved in this browser.</p>
+<p class="note">Use Wikidata movie lookup to add a selected result directly to your collection. Cover art is searched automatically using Wikipedia's page thumbnails first, then Apple's free movie catalog. Some titles may not have matching artwork; those keep the film icon. Cover art needs an internet connection, but your collection remains saved in this browser.</p>
 </section>
 </main>
 <footer>DiscVault starter · Private local collection · No account required</footer>
@@ -74,10 +74,23 @@ function updateFranchises(){const sel=$('view'),old=sel.value,vals=[...new Set(m
 function posterMarkup(m){return m.artworkUrl?`<div class="poster"><img src="${esc(m.artworkUrl)}" alt="Cover art for ${esc(m.title)}" loading="lazy" onerror="this.parentElement.innerHTML='🎬'"></div>`:'<div class="poster">🎬</div>'}
 function render(){updateStats();updateFranchises();const q=$('search').value.trim().toLowerCase(),f=$('view').value,s=$('sort').value;let arr=movies.filter(m=>(!f||(m.franchise||'')===f)&&[m.title,m.franchise,m.barcode,m.notes,m.format,m.year].join(' ').toLowerCase().includes(q));arr.sort((a,b)=>{if(s==='alpha')return a.title.localeCompare(b.title);if(s==='year')return (+a.year||9999)-(+b.year||9999)||a.title.localeCompare(b.title);const fc=(a.franchise||'Uncategorized').localeCompare(b.franchise||'Uncategorized');if(fc)return fc;const field=s==='chrono'?'chronoOrder':'releaseOrder';return (+a[field]||9999)-(+b[field]||9999)||(+a.year||9999)-(+b.year||9999)||a.title.localeCompare(b.title)});const groups={};arr.forEach(m=>{const g=(s==='alpha'||s==='year')?'All titles':(m.franchise||'Uncategorized');(groups[g]??=[]).push(m)});const list=$('list');if(!arr.length){list.innerHTML='<div class="empty">🎬<br><br>No movies found.<br><span class="muted">Add a movie above or change your search.</span></div>';return}list.innerHTML=Object.entries(groups).map(([g,items])=>`<div style="padding-top:14px"><h3 style="font-size:14px;color:#79bdff;margin:0 0 4px">${esc(g)} <span style="color:#91aac4;font-weight:400">(${items.length})</span></h3>${items.map(m=>`<article class="movie"><div class="moviehead">${posterMarkup(m)}<div class="movietext"><strong>${esc(m.title)}</strong><small>${esc(m.year||'Year unknown')} · ${esc(m.format||'DVD')}${m.barcode?' · Barcode '+esc(m.barcode):''}</small>${m.notes?`<small>${esc(m.notes)}</small>`:''}${m.franchise?`<div class="sequence">Release #${esc(m.releaseOrder||'—')} · Chronological #${esc(m.chronoOrder||'—')}</div>`:''}</div></div><div class="moviebuttons"><button class="secondary" data-edit="${esc(m.id)}">Edit</button><button class="secondary" data-cover="${esc(m.id)}">Find cover art</button><button class="danger" data-delete="${esc(m.id)}">Remove</button></div></article>`).join('')}</div>`).join('')}
 async function findCoverArt(movie){
-  // Try iTunes first, then Open Library as a free fallback.
   const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  // First try Wikipedia's page thumbnail, which often uses the film's poster.
   try{
-    const url='https://itunes.apple.com/search?term='+encodeURIComponent(movie.title)+'&entity=movie&limit=20';
+    const titles=[movie.title+(movie.year?' ('+movie.year+' film)':''),movie.title];
+    for(const titleQuery of titles){
+      const url='https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=pageimages&piprop=thumbnail&pithumbsize=500&redirects=1&titles='+encodeURIComponent(titleQuery);
+      const r=await fetch(url);
+      if(!r.ok)continue;
+      const data=await r.json();
+      const pages=Object.values(data.query?.pages||{});
+      const page=pages.find(p=>p.thumbnail?.source);
+      if(page?.thumbnail?.source)return page.thumbnail.source;
+    }
+  }catch(e){}
+  // Next try Apple's free movie catalog.
+  try{
+    const url='https://itunes.apple.com/search?term='+encodeURIComponent(movie.title)+'&entity=movie&limit=25';
     const r=await fetch(url);
     if(r.ok){
       const data=await r.json(), title=normalize(movie.title);
@@ -88,28 +101,27 @@ async function findCoverArt(movie){
         return {x,score};
       }).sort((a,b)=>b.score-a.score);
       const best=ranked.find(x=>x.score>=2)?.x;
-      if(best){
-        const art=best.artworkUrl600||best.artworkUrl100;
-        if(art)return art.replace(/\d+x\d+bb/, '600x900bb');
-      }
+      const art=best&&(best.artworkUrl600||best.artworkUrl100);
+      if(art)return art.replace(/\d+x\d+bb/, '600x900bb');
     }
   }catch(e){}
-  try{
-    const query=movie.title+(movie.year?' '+movie.year:'');
-    const r=await fetch('https://openlibrary.org/search.json?title='+encodeURIComponent(query)+'&limit=10');
-    if(!r.ok)return '';
-    const data=await r.json(), title=normalize(movie.title);
-    const docs=(data.docs||[]).map(d=>{
-      const candidate=normalize(d.title);
-      let score=candidate===title?5:(candidate.includes(title)||title.includes(candidate)?2:0);
-      if(movie.year&&d.first_publish_year&&String(d.first_publish_year)===String(movie.year))score+=1;
-      return {d,score};
-    }).sort((a,b)=>b.score-a.score);
-    const best=docs.find(x=>x.score>=2)?.d;
-    return best&&best.cover_i?'https://covers.openlibrary.org/b/id/'+best.cover_i+'-L.jpg?default=false':'';
-  }catch(e){return ''}
+  return '';
 }
-async function addCoverArt(movieId){const m=movies.find(x=>x.id===movieId);if(!m)return;$('mainStatus').textContent='Looking for cover art for “'+m.title+'”…';const art=await findCoverArt(m);const current=movies.find(x=>x.id===movieId);if(current&&art){current.artworkUrl=art;save();render();$('mainStatus').textContent='Cover art found for “'+m.title+'”.'}else{$('mainStatus').textContent='No matching cover art found. You can try Find cover art again later.'}}
+async function addCoverArt(movieId){
+  const m=movies.find(x=>x.id===movieId);if(!m)return;
+  $('mainStatus').textContent='Looking for cover art for “'+m.title+'”…';
+  let art='';
+  try{art=await findCoverArt(m)}catch(e){console.error('DiscVault cover lookup failed:',e)}
+  const current=movies.find(x=>x.id===movieId);
+  if(current&&art){
+    current.artworkUrl=art;save();render();
+    $('mainStatus').textContent='Cover art found for “'+m.title+'”.';
+  }else{
+    // Re-render the list so the clicked button is restored from “Searching…”.
+    render();
+    $('mainStatus').textContent='No matching cover art found for “'+m.title+'”. The lookup sources did not return an image; try a shorter title or check your connection.';
+  }
+}
 $('movieForm').addEventListener('submit',async e=>{e.preventDefault();const title=$('title').value.trim();if(!title)return;const m={id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),title,year:$('year').value,franchise:$('franchise').value.trim(),releaseOrder:$('releaseOrder').value,chronoOrder:$('chronoOrder').value,format:$('format').value,barcode:$('barcode').value.trim(),notes:$('notes').value.trim(),addedAt:new Date().toISOString(),artworkUrl:''};movies.push(m);save();$('movieForm').reset();$('formStatus').textContent='Added “'+title+'” to your collection. Looking for cover art…';$('search').value='';$('view').value='';render();const art=await findCoverArt(m);const saved=movies.find(x=>x.id===m.id);if(saved&&art){saved.artworkUrl=art;save();render();$('formStatus').textContent='Added “'+title+'” with cover art.'}else $('formStatus').textContent='Added “'+title+'”. No matching cover art was found; you can try Find cover art.'});
 $('search').addEventListener('input',render);$('view').addEventListener('change',render);$('sort').addEventListener('change',render);
 $('list').addEventListener('click',async e=>{const del=e.target.closest('[data-delete]'),edit=e.target.closest('[data-edit]'),cover=e.target.closest('[data-cover]');if(del){const m=movies.find(x=>x.id===del.dataset.delete);if(m&&confirm('Remove “'+m.title+'” from your collection?')){movies=movies.filter(x=>x.id!==m.id);save();render();$('mainStatus').textContent='Movie removed.'}}if(edit){const m=movies.find(x=>x.id===edit.dataset.edit);if(!m)return;$('title').value=m.title;$('year').value=m.year||'';$('franchise').value=m.franchise||'';$('releaseOrder').value=m.releaseOrder||'';$('chronoOrder').value=m.chronoOrder||'';$('format').value=m.format||'DVD';$('barcode').value=m.barcode||'';$('notes').value=m.notes||'';movies=movies.filter(x=>x.id!==m.id);save();render();window.scrollTo({top:0,behavior:'smooth'});$('formStatus').textContent='Editing “'+m.title+'”. Tap Add to save your changes.'}if(cover){cover.disabled=true;cover.textContent='Searching…';await addCoverArt(cover.dataset.cover);}});
