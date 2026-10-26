@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#081321">
+<title>DiscVault — DVD Collection</title>
+<style>
+:root{color-scheme:dark;--bg:#081321;--panel:#102238;--panel2:#142b43;--line:#29425b;--text:#f3f7ff;--muted:#a9bfd5;--blue:#1688ff;--blue2:#61b4ff;--danger:#ff7777}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{padding:20px 18px 14px;background:linear-gradient(135deg,#0b1b2e,#123d68);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:48px;height:48px;border-radius:15px;background:#123d68;display:grid;place-items:center;font-size:27px;border:1px solid #286ca5}.brand h1{font-size:24px;margin:0}.brand p{margin:3px 0 0;color:var(--muted);font-size:13px}
+main{max-width:760px;margin:auto;padding:15px;display:grid;gap:14px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat,.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}.stat strong{display:block;color:var(--blue2);font-size:25px}.stat span{font-size:12px;color:var(--muted)}
+h2{font-size:18px;margin:0 0 12px}.muted{color:var(--muted);font-size:13px;line-height:1.45}.field{width:100%;background:#091727;border:1px solid var(--line);border-radius:11px;padding:12px;color:var(--text);font:inherit;min-width:0}label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}button,.filebutton{border:0;border-radius:11px;padding:11px 13px;font:600 14px inherit;background:var(--blue);color:white;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}button.secondary,.filebutton{background:#1b344e;border:1px solid #355574;color:var(--text)}button.danger{background:#3b202b;border:1px solid #7d3948;color:#ffc1c1}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}.formgrid .full{grid-column:1/-1}.sortrow{display:grid;grid-template-columns:1fr 1fr;gap:8px}.movie{padding:12px 0;border-bottom:1px solid var(--line)}.movie:last-child{border-bottom:0}.moviehead{display:flex;align-items:flex-start;gap:10px}.poster{width:42px;height:56px;flex:none;border-radius:7px;background:linear-gradient(150deg,#1c4770,#0b1727);display:grid;place-items:center;font-size:22px}.movietext{flex:1;min-width:0}.movietext strong{display:block;line-height:1.3}.movietext small{display:block;color:var(--muted);margin-top:4px;line-height:1.4}.sequence{color:var(--blue2);font-size:12px;margin-top:5px}.moviebuttons{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.moviebuttons button{padding:7px 9px;font-size:12px}.empty{text-align:center;padding:25px 10px;color:var(--muted)}.status{font-size:13px;color:#9fdbb9;min-height:18px;margin-top:8px}.note{font-size:12px;color:#91aac4;line-height:1.5}.hidden{display:none!important}footer{padding:0 18px 24px;text-align:center;color:#819bb6;font-size:12px}
+@media(max-width:420px){main{padding:11px}.formgrid{grid-template-columns:1fr}.formgrid .full{grid-column:auto}.brand h1{font-size:22px}.stat,.card{padding:12px}}
+</style>
+</head>
+<body>
+<header><div class="brand"><div class="logo">🎞️</div><div><h1>DiscVault</h1><p>Your movie collection, organized.</p></div></div></header>
+<main>
+<section class="stats"><div class="stat"><strong id="count">0</strong><span>Movies owned</span></div><div class="stat"><strong id="franchiseCount">0</strong><span>Franchises</span></div><div class="stat"><strong id="dupes">0</strong><span>Duplicates flagged</span></div></section>
+<section class="card">
+<h2>Add a movie</h2><p class="muted">Add a title manually now. Barcode lookup can be connected in a later version; this version keeps your collection on this device.</p>
+<form id="movieForm">
+<div class="formgrid">
+<div class="full"><label for="title">Movie title *</label><input class="field" id="title" required maxlength="120" placeholder="e.g. The Dark Knight"></div>
+<div><label for="year">Release year</label><input class="field" id="year" inputmode="numeric" type="number" min="1888" max="2100" placeholder="2008"></div>
+<div><label for="franchise">Franchise / series</label><input class="field" id="franchise" maxlength="100" placeholder="e.g. Batman"></div>
+<div><label for="releaseOrder">Release order</label><input class="field" id="releaseOrder" type="number" min="1" placeholder="1"></div>
+<div><label for="chronoOrder">Chronological order</label><input class="field" id="chronoOrder" type="number" min="1" placeholder="1"></div>
+<div><label for="format">Edition</label><select class="field" id="format"><option>DVD</option><option>Blu-ray</option><option>4K UHD</option><option>Digital</option><option>Other</option></select></div>
+<div><label for="barcode">Barcode (optional)</label><input class="field" id="barcode" inputmode="numeric" maxlength="30" placeholder="UPC / EAN"></div>
+<div class="full"><label for="notes">Notes (optional)</label><input class="field" id="notes" maxlength="240" placeholder="Special edition, box set, condition…"></div>
+</div>
+<div class="actions"><button type="submit">＋ Add to collection</button><button class="secondary" type="reset">Clear form</button></div>
+<div class="status" id="formStatus" role="status"></div>
+</form>
+</section>
+<section class="card">
+<h2>My collection</h2>
+<input id="search" class="field" placeholder="Search titles, franchise, barcode…" aria-label="Search collection">
+<div style="height:10px"></div>
+<div class="sortrow"><select id="view" class="field" aria-label="Filter franchise"><option value="">All franchises</option></select><select id="sort" class="field" aria-label="Sort order"><option value="release">Franchise · release order</option><option value="chrono">Franchise · chronological</option><option value="alpha">Title A–Z</option><option value="year">Release year</option></select></div>
+<div id="list"></div>
+<div class="actions"><button id="exportBtn" class="secondary">Export backup</button><label class="filebutton" for="importFile">Import backup</label><input id="importFile" class="hidden" type="file" accept="application/json,.json"><button id="clearBtn" class="danger">Clear collection</button></div>
+<p class="note">Your saved list is stored in this browser on this device. Export a backup regularly. Clearing browser data or changing browsers can erase the local copy.</p>
+<div class="status" id="mainStatus" role="status"></div>
+</section>
+<section class="card">
+<h2>How franchise ordering works</h2>
+<p class="muted">Enter a franchise name consistently (for example, “Star Wars”) to group its movies. Set each film’s release and chronological order numbers, then switch the sort menu. If you don’t know the in-universe order, leave it blank; those titles will appear after numbered entries.</p>
+<p class="note">This starter version does not automatically fetch movie data or scan barcodes. It provides persistent local cataloging, search, sorting, duplicate warnings, and portable backups. Live metadata and camera scanning need an external lookup service and a secure hosted app.</p>
+</section>
+</main>
+<footer>DiscVault starter · Private local collection · No account required</footer>
+<script>
+const KEY='discvault.collection.v1';
+const $=id=>document.getElementById(id);
+let movies=[];
+function load(){try{const x=JSON.parse(localStorage.getItem(KEY)||'[]');movies=Array.isArray(x)?x.filter(m=>m&&m.id&&m.title):[]}catch(e){movies=[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(movies));return true}catch(e){$('mainStatus').textContent='Could not save in this browser. Export a backup before leaving.';return false}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function updateStats(){$('count').textContent=movies.length;$('franchiseCount').textContent=new Set(movies.map(m=>(m.franchise||'').trim()).filter(Boolean)).size;const seen=new Set();let dup=0;movies.forEach(m=>{const k=(m.title+'|'+(m.year||'')).toLowerCase();if(seen.has(k))dup++;seen.add(k)});$('dupes').textContent=dup}
+function updateFranchises(){const sel=$('view'),old=sel.value,vals=[...new Set(movies.map(m=>(m.franchise||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b));sel.innerHTML='<option value="">All franchises</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(old))sel.value=old}
+function render(){updateStats();updateFranchises();const q=$('search').value.trim().toLowerCase(),f=$('view').value,s=$('sort').value;let arr=movies.filter(m=>(!f||(m.franchise||'')===f)&&[m.title,m.franchise,m.barcode,m.notes,m.format,m.year].join(' ').toLowerCase().includes(q));arr.sort((a,b)=>{if(s==='alpha')return a.title.localeCompare(b.title);if(s==='year')return (+a.year||9999)-(+b.year||9999)||a.title.localeCompare(b.title);const fc=(a.franchise||'Uncategorized').localeCompare(b.franchise||'Uncategorized');if(fc)return fc;const field=s==='chrono'?'chronoOrder':'releaseOrder';return (+a[field]||9999)-(+b[field]||9999)||(+a.year||9999)-(+b.year||9999)||a.title.localeCompare(b.title)});const groups={};arr.forEach(m=>{const g=(s==='alpha'||s==='year')?'All titles':(m.franchise||'Uncategorized');(groups[g]??=[]).push(m)});const list=$('list');if(!arr.length){list.innerHTML='<div class="empty">🎬<br><br>No movies found.<br><span class="muted">Add a movie above or change your search.</span></div>';return}list.innerHTML=Object.entries(groups).map(([g,items])=>`<div style="padding-top:14px"><h3 style="font-size:14px;color:#79bdff;margin:0 0 4px">${esc(g)} <span style="color:#91aac4;font-weight:400">(${items.length})</span></h3>${items.map(m=>`<article class="movie"><div class="moviehead"><div class="poster">🎬</div><div class="movietext"><strong>${esc(m.title)}</strong><small>${esc(m.year||'Year unknown')} · ${esc(m.format||'DVD')}${m.barcode?' · Barcode '+esc(m.barcode):''}</small>${m.notes?`<small>${esc(m.notes)}</small>`:''}${m.franchise?`<div class="sequence">Release #${esc(m.releaseOrder||'—')} · Chronological #${esc(m.chronoOrder||'—')}</div>`:''}</div></div><div class="moviebuttons"><button class="secondary" data-edit="${esc(m.id)}">Edit</button><button class="danger" data-delete="${esc(m.id)}">Remove</button></div></article>`).join('')}</div>`).join('')}
+$('movieForm').addEventListener('submit',e=>{e.preventDefault();const title=$('title').value.trim();if(!title)return;const m={id:crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random(),title,year:$('year').value,franchise:$('franchise').value.trim(),releaseOrder:$('releaseOrder').value,chronoOrder:$('chronoOrder').value,format:$('format').value,barcode:$('barcode').value.trim(),notes:$('notes').value.trim(),addedAt:new Date().toISOString()};movies.push(m);save();$('movieForm').reset();$('formStatus').textContent='Added “'+title+'” to your collection.';$('search').value='';$('view').value='';render()});
+$('search').addEventListener('input',render);$('view').addEventListener('change',render);$('sort').addEventListener('change',render);
+$('list').addEventListener('click',e=>{const del=e.target.closest('[data-delete]'),edit=e.target.closest('[data-edit]');if(del){const m=movies.find(x=>x.id===del.dataset.delete);if(m&&confirm('Remove “'+m.title+'” from your collection?')){movies=movies.filter(x=>x.id!==m.id);save();render();$('mainStatus').textContent='Movie removed.'}}if(edit){const m=movies.find(x=>x.id===edit.dataset.edit);if(!m)return;$('title').value=m.title;$('year').value=m.year||'';$('franchise').value=m.franchise||'';$('releaseOrder').value=m.releaseOrder||'';$('chronoOrder').value=m.chronoOrder||'';$('format').value=m.format||'DVD';$('barcode').value=m.barcode||'';$('notes').value=m.notes||'';movies=movies.filter(x=>x.id!==m.id);save();render();window.scrollTo({top:0,behavior:'smooth'});$('formStatus').textContent='Editing “'+m.title+'”. Tap Add to save your changes.'}});
+$('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({app:'DiscVault',version:1,exportedAt:new Date().toISOString(),movies},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='discvault-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href);$('mainStatus').textContent='Backup export started.'});
+$('importFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text()),incoming=Array.isArray(data)?data:data.movies;if(!Array.isArray(incoming))throw Error('Invalid backup');if(!confirm('Import '+incoming.length+' entries? This replaces the current collection. Export a backup first if needed.'))return;movies=incoming.filter(m=>m&&m.title).map(m=>({...m,id:m.id||String(Date.now())+Math.random()}));save();render();$('mainStatus').textContent='Backup imported.'}catch(err){$('mainStatus').textContent='Could not import that file. Choose a DiscVault JSON backup.'}finally{e.target.value=''}});
+$('clearBtn').addEventListener('click',()=>{if(confirm('Delete every movie from this browser? Export a backup first if you want to keep them.')){movies=[];save();render();$('mainStatus').textContent='Collection cleared.'}});
+load();render();
+</script>
+</body></html>
